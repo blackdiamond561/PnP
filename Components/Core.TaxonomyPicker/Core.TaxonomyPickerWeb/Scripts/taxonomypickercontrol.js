@@ -150,10 +150,10 @@
                         if (term.Level == currentLevel) {
                             var path = term.PathOfTerm.split(';');
                             if (
+							    typeof (filterTerm) == 'undefined' ||
                                 ((path.length == this.LevelToShowTerms && this.FilterTermId != null && this.FilterTermId == term.Id) ||
-                                (this.FilterTermId != null && term.PathOfTerm.indexOf(filterTerm.Name) > -1 && this.LevelToShowTerms - 1 == term.Level)
-
-                                ) || typeof (filterTerm) == 'undefined') {
+                                (this.FilterTermId != null && term.PathOfTerm.indexOf(filterTerm.Name) > -1 && this.LevelToShowTerms - 1 == term.Level))
+								) {
 
                                 if (currentLevel == 0) {
                                     this.Terms.push(term.clone());
@@ -359,16 +359,13 @@
             });
 
             //load translation files
-            if (typeof CAMControl.resourceLoaded == 'undefined') {
-                CAMControl.resourceLoaded = false;
+            if (!window.TaxonomyPickerConsts) {
                 var resourceFileName = scriptUrl + '_resources.' + this.Language.substring(0, 2).toLowerCase() + '.js';
 
                 jQuery.ajax({
                     dataType: "script",
                     cache: true,
                     url: resourceFileName
-                }).done(function () {
-                    CAMControl.resourceLoaded = true;
                 }).fail(function () {
                     alert('Could not load the resource file ' + resourceFileName);
                 });
@@ -396,11 +393,19 @@
                 this._control.empty().append(this._editor).append(this._hiddenValidated);
             }
 
-
-
-
             //initialize value if it exists
-            if (this._initialValue != undefined && this._initialValue.length > 0) {
+            if (this._initialLabels) {
+                //When the termset is loaded, terms with the supplied labels are initially selected
+                this.TermSet.OnTermsLoaded = Function.createDelegate(this, function () {
+                    for (var j = 0; j < this._initialLabels.length; j++) {
+                        var terms = this.TermSet.getTermsByLabel(this._initialLabels[j]);
+                        for (var i = 0; i < terms.length; i++) {
+                            this.pushSelectedTerm(terms[i]);
+                        }
+                    }
+                    this._editor.html(this.selectedTermsToHtml());
+                });
+            } else if (this._initialValue != undefined && this._initialValue.length > 0) {
                 var terms = JSON.parse(this._initialValue);
                 for (var i = 0; i < terms.length; i++) {
                     //add the term to selected terms array
@@ -727,6 +732,7 @@
             //reset this._selectedTerms
             this._selectedTerms = newTerms;
             this._hiddenValidated.val(JSON.stringify(this._selectedTerms));
+            this._hiddenValidated.trigger('change');
 
             return textValidation;
         },
@@ -754,6 +760,7 @@
                        		
                        		this._selectedTerms.push(termNew);
                 			this._hiddenValidated.val(JSON.stringify(this._selectedTerms));
+                			this._hiddenValidated.trigger('change');
                 			
                 			this.pushSelectedTerm(termNew);
 
